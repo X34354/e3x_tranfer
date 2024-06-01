@@ -1,0 +1,32 @@
+# Archivos y carpetas de Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.venv
+.idea/
+.vscode/
+
+# Archivos de Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Archivos de datos
+*.csv
+*.tsv
+*.dat
+*.data
+*.tmp
+
+# Archivos de salida de modelos de machine learning
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+*.pt
+*.model
+*.html
+# Carpeta de MLflow
+mlruns/
