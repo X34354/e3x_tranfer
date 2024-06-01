@@ -19,7 +19,7 @@ build/
 *.dat
 *.data
 *.tmp
-
+*.npz
 # Archivos de salida de modelos de machine learning
 *.h5
 *.hdf5
