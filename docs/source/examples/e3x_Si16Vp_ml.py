@@ -22,6 +22,7 @@ from plotly.subplots import make_subplots
 import e3x
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+jax.devices()
 
 
 def create_loss_plot(
@@ -520,12 +521,11 @@ tail_str = (
 # ---- Training hyperparameters ----
 num_train = 4000
 num_valid = 1000
-num_epochs = 5000
+num_epochs = 1
 learning_rate = 0.001
 forces_weight = 0.9
 batch_size = 100
 # ----------------------------------
-
 model = np.load(model_train, allow_pickle=True)
 pesos_modelo = {}
 for key in model.keys():
@@ -653,3 +653,19 @@ if __name__ == "__main__":
 
         print("Experiment completed and logged with MLflow.")
         mlflow.end_run()
+
+"""
+import pickle
+
+with open("best_model_params_test.pkl", "rb") as file:
+    loaded_params = pickle.load(file)
+loaded_params["hyperparameters"] = {
+    "features": 32,
+    "max_degree": 2,
+    "num_iterations": 3,
+    "num_basis_functions": 16,
+    "cutoff": 5.0,
+}
+with open("best_model_params_test_mode.pkl", "wb") as file:
+    pickle.dump(loaded_params, file)
+"""
