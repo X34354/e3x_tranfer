@@ -30,3 +30,4 @@ build/
 *.html
 # Carpeta de MLflow
 mlruns/
+paper/
