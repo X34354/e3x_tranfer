@@ -64,7 +64,7 @@ def prepare_datasets(filename, key, num_train, num_valid):
     dataset = np.load(filename)
     num_data = len(dataset["E"])
     Z = jnp.full(16, 14)
-    Z = jnp.append(Z, 23)
+    Z = jnp.insert(Z,0, 23)
     Z = jnp.expand_dims(Z, axis=0)
     Z = jnp.repeat(Z, num_data, axis=0)
     num_draw = num_train + num_valid
@@ -101,7 +101,7 @@ def prepare_datasets(filename, key, num_train, num_valid):
 
 
 class Dipole_Moment(nn.Module):
-    # features = 1
+    features = 8
     # max_degree = 1
     @nn.compact
     def __call__(self, atomic_numbers, positions):  # Shapes (..., N) and (..., N, 3).
@@ -113,9 +113,9 @@ class Dipole_Moment(nn.Module):
         x = x[..., None, :, None]  # Shape (..., N, 1, 3, 1).
         # print("x shape:", x.shape)
         # 2. Apply transformations.
-        x = e3x.nn.Dense(features=1)(x)
+        x = e3x.nn.Dense(self.features)(x)
         # print("After Dense layer:", x.shape)
-        x = e3x.nn.TensorDense(max_degree=1)(x)
+        x = e3x.nn.TensorDense(features=1,max_degree=1)(x)
         # print("After TensorDense layer:", x.shape)
         x = jnp.sum(x, axis=-4)
         # print("After sum:", x.shape)
@@ -242,9 +242,8 @@ learning_rate = 0.002
 num_epochs = 5000
 batch_size = 516
 
-
 if __name__ == "__main__":
-
+    
     key = jax.random.PRNGKey(0)
     train_data, valid_data = prepare_datasets(filename, key, num_train, num_val)
     key, train_key = jax.random.split(key)
