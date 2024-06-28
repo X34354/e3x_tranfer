@@ -62,9 +62,11 @@ def create_loss_plot(
 def prepare_datasets(filename, key, num_train, num_valid):
     # Load the dataset.
     dataset = np.load(filename)
+    for j in range(len(dataset["R"])):
+        dataset["R"][j, :, :] = dataset["R"][j, :, :] - dataset["R"][j, 0, :]
     num_data = len(dataset["E"])
     Z = jnp.full(16, 14)
-    Z = jnp.insert(Z,0, 23)
+    Z = jnp.insert(Z, 0, 23)
     Z = jnp.expand_dims(Z, axis=0)
     Z = jnp.repeat(Z, num_data, axis=0)
     num_draw = num_train + num_valid
@@ -102,6 +104,7 @@ def prepare_datasets(filename, key, num_train, num_valid):
 
 class Dipole_Moment(nn.Module):
     features = 8
+
     # max_degree = 1
     @nn.compact
     def __call__(self, atomic_numbers, positions):  # Shapes (..., N) and (..., N, 3).
@@ -115,7 +118,7 @@ class Dipole_Moment(nn.Module):
         # 2. Apply transformations.
         x = e3x.nn.Dense(self.features)(x)
         # print("After Dense layer:", x.shape)
-        x = e3x.nn.TensorDense(features=1,max_degree=1)(x)
+        x = e3x.nn.TensorDense(features=1, max_degree=1)(x)
         # print("After TensorDense layer:", x.shape)
         x = jnp.sum(x, axis=-4)
         # print("After sum:", x.shape)
@@ -184,6 +187,8 @@ def train_model(
     best_val_loss = float("inf")
     best_params = None
     number_epoch = 0
+    epochs_no_improve = 0
+    patience = 1000  # Number of epochs to wait for improvement
 
     for epoch in range(1, num_epochs + 1):
         key, shuffle_key = jax.random.split(key)
@@ -216,10 +221,20 @@ def train_model(
             best_train_loss = train_loss
             best_params = params
             number_epoch = epoch
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
 
         print(
             f"epoch {epoch : 4d} train loss {train_loss : 8.6f} valid loss {valid_loss : 8.6f}"
         )
+
+        # Early stopping if no improvement after `patience` epochs.
+        if epochs_no_improve >= patience:
+            print(
+                f"Early stopping at epoch {epoch} with best validation loss {best_val_loss : 8.6f}"
+            )
+            break
 
     # Optionally return the best_params if you want to use the model with the lowest validation loss.
     return (
@@ -243,7 +258,7 @@ num_epochs = 5000
 batch_size = 516
 
 if __name__ == "__main__":
-    
+
     key = jax.random.PRNGKey(0)
     train_data, valid_data = prepare_datasets(filename, key, num_train, num_val)
     key, train_key = jax.random.split(key)
@@ -294,5 +309,4 @@ if __name__ == "__main__":
             "Training vs Validation Loss (Train)",
             "train_vs_val_train_dipole_moment.html",
         )
-
         mlflow.end_run()
