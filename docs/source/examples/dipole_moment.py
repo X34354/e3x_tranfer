@@ -256,7 +256,7 @@ num_val = 1000
 learning_rate = 0.002
 num_epochs = 5000
 batch_size = 516
-
+test_value = True
 if __name__ == "__main__":
 
     key = jax.random.PRNGKey(0)
@@ -310,3 +310,20 @@ if __name__ == "__main__":
             "train_vs_val_train_dipole_moment.html",
         )
         mlflow.end_run()
+
+    if test_value:
+
+        i = 45
+        Z, positions, target = (
+            valid_data["atomic_numbers"][i],
+            valid_data["positions"][i],
+            valid_data["dipole_moment"][i],
+        )
+
+        prediction = model.apply(best_params, Z, positions)
+
+        print("target")
+        print(target)
+        print("prediction")
+        print(prediction)
+        print("mean squared error", jnp.mean((prediction - target) ** 2))
