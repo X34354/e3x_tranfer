@@ -57,8 +57,7 @@ def create_loss_plot(
     )
     pio.write_html(fig, filename)
     mlflow.log_artifact(filename)
-
-
+dataset.keys()
 def prepare_datasets(filename, key, num_train, num_valid):
     # Load the dataset.
     dataset = np.load(filename)
@@ -247,8 +246,9 @@ def train_model(
     )
 
 
-filename = "test_data.npz"
+filename = "/home/beemoqc2/Documents/e3x_tranfer/docs/source/examples/test_data.npz"
 experiment_name = "dipole_moment"
+model_save_path = "/home/beemoqc2/Documents/e3x_tranfer/docs/source/examples/best_model_params_test.pkl"
 
 num_train = 4000
 num_val = 1000
@@ -257,6 +257,7 @@ learning_rate = 0.002
 num_epochs = 5000
 batch_size = 516
 test_value = True
+
 if __name__ == "__main__":
 
     key = jax.random.PRNGKey(0)
@@ -295,7 +296,6 @@ if __name__ == "__main__":
         mlflow.log_metric("best_train_loss", best_train_loss)
         mlflow.log_metric("best_val_loss", best_val_loss)
 
-        model_save_path = "best_model_params_test.pkl"
         with open(model_save_path, "wb") as f:
             pickle.dump(best_params, f)
 
@@ -312,14 +312,20 @@ if __name__ == "__main__":
         mlflow.end_run()
 
     if test_value:
-
+valid_data.keys()
         i = 45
         Z, positions, target = (
             valid_data["atomic_numbers"][i],
             valid_data["positions"][i],
             valid_data["dipole_moment"][i],
         )
+        import pickle
 
+        with open(model_save_path, "rb") as file:
+            best_params = pickle.load(file)
+
+        positions_trans = positions
+        positions_trans = positions_trans.at[:, 0].add(1000)
         prediction = model.apply(best_params, Z, positions)
 
         print("target")
