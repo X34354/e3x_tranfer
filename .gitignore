@@ -31,3 +31,6 @@ build/
 # Carpeta de MLflow
 mlruns/
 paper/
+**/bin/
+torch_analisis/
+venv/
