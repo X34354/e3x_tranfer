@@ -1,0 +1,32 @@
+paths:
+  name_data_retrain: 'Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q'
+  path_data: '../e3x_tranfer/data/'
+  path_model: '../e3x_tranfer/model/'
+  experiment_name: "MP_Model_Training_fine_tunig"
+
+  model_train_pickle: "../e3x_tranfer/model/best_model_1phase.pkl"
+  data_train: null
+  data_retrain: "../e3x_tranfer/data/Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q.npz"
+  model_retrain_pickle_save: "../e3x_tranfer/model/Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q.pkl"
+
+atom_energies:
+  rm_atom_energ: true
+  atom_energ: -3507661.3898417074  # kcal/mol
+
+model_hyperparameters:
+  features: 32
+  max_degree: 1
+  num_iterations: 5
+  num_basis_functions: 16
+  cutoff: 10.0
+  max_atomic_number: 26
+  str_optim: "adam"
+
+training_hyperparameters:
+  num_train: 4000
+  num_valid: 1000
+  num_epochs: 1
+  learning_rate: 0.001
+  forces_weight: 0.9
+  batch_size: 256
+mode : Retrain

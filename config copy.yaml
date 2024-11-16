@@ -1,0 +1,21 @@
+# config.yaml
+
+# Tamaño de los conjuntos de entrenamiento y validación
+data:
+  num_train: 4628
+  num_val: 1000
+
+# Hiperparámetros de entrenamiento
+training:
+  learning_rate: 0.001
+  num_epochs: 3000
+  batch_size: 256
+
+# Hiperparámetros del modelo
+model:
+  features: 128
+  max_degree: 2
+  num_iterations: 3
+  num_basis_functions: 16
+  cutoff: 6.0
+  max_atomic_number: 23

@@ -6,7 +6,6 @@ import pickle
 import warnings
 from datetime import datetime
 from typing import List
-
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -62,7 +61,7 @@ def create_loss_plot(
     mlflow.log_artifact(filename)
 
 
-def prepare_datasets(key, num_train, num_valid):
+def prepare_datasets(key, num_train, num_valid, filename):
     # Load the dataset.
     dataset = np.load(filename)
 
@@ -265,12 +264,9 @@ def mean_absolute_error(prediction, target):
     return jnp.mean(jnp.abs(prediction - target))
 
 
-@functools.partial(
-    jax.jit, static_argnames=("model_apply", "optimizer_update", "batch_size")
-)
+@functools.partial(jax.jit, static_argnames=("model_apply", "optimizer_update", "batch_size"))
 def train_step(
-    model_apply, optimizer_update, batch, batch_size, forces_weight, opt_state, params
-):
+    model_apply, optimizer_update, batch, batch_size, forces_weight, opt_state, params):
     def loss_fn(params):
         energy, forces = model_apply(
             params,
@@ -334,6 +330,7 @@ def train_model(
     learning_rate,
     forces_weight,
     batch_size,
+    file
 ):
     # Initialize model parameters and optimizer state.
     print("Initialize model parameters and optimizer state.")
@@ -454,13 +451,15 @@ def train_model(
             valid_loss_best = valid_loss
             valid_energy_mae_best = valid_energy_mae
             valid_forces_mae_best = valid_forces_mae
+            train_energy_mae_best = train_energy_mae
+            train_forces_mae_best = train_forces_mae
             # Store best model
             params_best = device_put(params_best)
             params_2save = {
                 "errors": [valid_loss_best, valid_energy_mae, valid_forces_mae],
                 "model": params_best,
             }
-            jnp.savez(f"best_model_{tail_str}_tmp_test.npz", **params_2save)
+            #jnp.savez(f"best_model_{tail_str}_tmp_test.npz", **params_2save)
 
         if os.path.exists("early_stop"):
             print("BREAK: early_stop")
@@ -483,27 +482,23 @@ def train_model(
         loss_train,
         loss_energy,
         loss_force,
+        train_energy_mae_best,
+        train_forces_mae_best,
         valid_loss_best,
         valid_energy_mae_best,
         valid_forces_mae_best,
     )
 
-
-filename = "/home/beemoqc2/Documents/e3x_tranfer/docs/source/examples/test_data.npz"
-model_train = "/home/beemoqc2/Documents/e3x/docs/source/examples/best_model_1phase.npz"
-model_train_pickle = (
-    "/home/beemoqc2/Documents/e3x/docs/source/examples/model_params_train.pkl"
-)
+name_data_retrain = 'Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q'
+path_data = '../e3x_tranfer/data/'
+path_model = '../e3x_tranfer/model/'
 experiment_name = "MP_Model_Training_fine_tunig"
 
-# model  model tuning
-filename_tuning = "/home/beemoqc2/Documents/e3x/docs/source/examples/test_data.npz"
-model_train_tuning = (
-    "/home/beemoqc2/Documents/e3x/docs/source/examples/best_model_1phase.npz"
-)
-model_train_pickle_tuning = (
-    "/home/beemoqc2/Documents/e3x/docs/source/examples/model_params_train.pkl"
-)
+model_train_pickle = f"{path_model}best_model_1phase.pkl"
+data_train = None
+data_retrain = f'{path_data}{name_data_retrain}_retrain.npz'
+
+model_retrain_pickle_save = f"{path_model}{name_data_retrain}_retrain_.pkl"
 
 # Atomic energies: V + 16 * Si
 rm_atom_energ = True
@@ -518,58 +513,79 @@ max_atomic_number = 26
 str_optim = "adam"
 # -----------------------------
 
-tail_str = (
-    f"f{features}_l{max_degree}_i{num_iterations}_b{num_basis_functions}_{str_optim}"
-)
 
 # ---- Training hyperparameters ----
 num_train = 4000
 num_valid = 1000
-num_epochs = 1
+num_epochs = 2000
 learning_rate = 0.001
 forces_weight = 0.9
-batch_size = 100
+batch_size = 256
 # ----------------------------------
-filename = "/home/beemo-qc2/Documents/e3x_tranfer/docs/source/examples/prueba.npz"
-dataset = np.load(filename)
-for key in dataset.keys():
-    print(key)
 
-dataset["name"]
-# Dentro de la función principal, ajusta el entrenamiento del modelo para que utilice MLflow
+import yaml
+import os
+
+# Cargar el archivo YAML
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+# Acceder a las variables de paths
+paths = config['paths']
+name_data_retrain = paths['name_data_retrain']
+path_data = paths['path_data']
+path_model = paths['path_model']
+experiment_name = paths['experiment_name']
+
+model_train_pickle = f"{path_model}best_model_1phase.pkl"
+
+data_train = paths['data_train']  # Será None
+
+data_retrain = f'{path_data}{name_data_retrain}.npz'
+model_retrain_pickle_save = f"{path_model}{name_data_retrain}.pkl"
+
+# Acceder a las variables de energías atómicas
+atom_energies = config['atom_energies']
+rm_atom_energ = atom_energies['rm_atom_energ']
+atom_energ = atom_energies['atom_energ']
+
+# Acceder a los hiperparámetros del modelo
+model_hyperparams = config['model_hyperparameters']
+features = model_hyperparams['features']
+max_degree = model_hyperparams['max_degree']
+num_iterations = model_hyperparams['num_iterations']
+num_basis_functions = model_hyperparams['num_basis_functions']
+cutoff = model_hyperparams['cutoff']
+max_atomic_number = model_hyperparams['max_atomic_number']
+str_optim = model_hyperparams['str_optim']
+
+# Acceder a los hiperparámetros de entrenamiento
+training_hyperparams = config['training_hyperparameters']
+num_train = training_hyperparams['num_train']
+num_valid = training_hyperparams['num_valid']
+num_epochs = training_hyperparams['num_epochs']
+learning_rate = training_hyperparams['learning_rate']
+forces_weight = training_hyperparams['forces_weight']
+batch_size = training_hyperparams['batch_size']
+
+# Ejemplo de uso de las variables
 
 if __name__ == "__main__":
 
-    # Iniciar una nueva corrida en MLflow
-    mlflow.set_experiment(experiment_name)
-    with mlflow.start_run(run_name=f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
-        jax.devices()
-        # Log the dataset used
-        mlflow.log_param("dataset", filename)
-        mlflow.log_param("Fist model pre training", model_train)
-        # Log model hyperparameters
-        mlflow.log_param("features", features)
-        mlflow.log_param("atom_energ", atom_energ)
-        mlflow.log_param("rm_atom_energ", rm_atom_energ)
-        mlflow.log_param("max_degree", max_degree)
-        mlflow.log_param("num_iterations", num_iterations)
-        mlflow.log_param("num_basis_functions", num_basis_functions)
-        mlflow.log_param("cutoff", cutoff)
-        mlflow.log_param("max_atomic_number", max_atomic_number)
-        mlflow.log_param("optimizer", str_optim)
-        mlflow.log_param("num_train", num_train)
-        mlflow.log_param("num_valid", num_valid)
-        mlflow.log_param("num_epochs", num_epochs)
-        mlflow.log_param("learning_rate", learning_rate)
-        mlflow.log_param("forces_weight", forces_weight)
-        mlflow.log_param("batch_size", batch_size)
 
+
+    mlflow.set_experiment(experiment_name)
+    with mlflow.start_run(run_name=f"run_{name_data_retrain}_retrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+
+        mlflow.log_artifact("config.yaml")
+        mlflow.log_artifact(data_retrain)    
+        mlflow.log_artifact(model_train_pickle)   
         # Create PRNGKeys.
         data_key, train_key = jax.random.split(jax.random.PRNGKey(0), 2)
 
         # Draw training and validation sets.
         train_data, valid_data, _ = prepare_datasets(
-            data_key, num_train=num_train, num_valid=num_valid
+            data_key, num_train=num_train, num_valid=num_valid , filename = data_retrain
         )
 
         # Create and train model.
@@ -594,6 +610,8 @@ if __name__ == "__main__":
             loss_energy,
             loss_force,
             valid_loss_best,
+            train_energy_mae_best,
+            train_forces_mae_best,
             valid_energy_mae_best,
             valid_forces_mae_best,
         ) = train_model(
@@ -605,6 +623,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             forces_weight=forces_weight,
             batch_size=batch_size,
+            file = model_train_pickle
+
         )
 
         # Log metrics
@@ -612,16 +632,16 @@ if __name__ == "__main__":
         mlflow.log_metric("final_val_loss", loss_val_train[-1])
         mlflow.log_metric("final_energy_mae", loss_energy[-1])
         mlflow.log_metric("final_force_mae", loss_force[-1])
-        mlflow.log_metric("best_force_mae", valid_forces_mae_best)
-        mlflow.log_metric("best_loss_enery", valid_forces_mae_best)
+        mlflow.log_metric("train_best_force_mae", train_forces_mae_best)
+        mlflow.log_metric("train_best_enery_mae", train_energy_mae_best)
+        mlflow.log_metric("val_best_force_mae", valid_forces_mae_best)
+        mlflow.log_metric("val_best_enery_mae", valid_energy_mae_best)
         mlflow.log_metric("best_loss", valid_loss_best)
 
-        # Save the best model parameters
-        model_save_path = "best_model_params_test.pkl"
-        with open(model_save_path, "wb") as f:
+        with open(model_retrain_pickle_save, "wb") as f:
             pickle.dump(params, f)
 
-        mlflow.log_artifact(model_save_path)
+        mlflow.log_artifact(model_retrain_pickle_save)
         # Create and log plots
         create_loss_plot(
             loss_train,
@@ -650,3 +670,5 @@ if __name__ == "__main__":
 
         print("Experiment completed and logged with MLflow.")
         mlflow.end_run()
+
+
