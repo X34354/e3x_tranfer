@@ -337,7 +337,7 @@ def train_model(
     file,
 ):
     # Initialize model parameters and optimizer state.
-    print("Initialize model parameters and optimizer state.")
+    print("Initializing model parameters and optimizer state.")
     key, init_key = jax.random.split(key)
 
     if str_optim == "adam":
@@ -363,19 +363,24 @@ def train_model(
     opt_state = optimizer.init(params)
 
     # Batches for the validation set need to be prepared only once.
-    print("Batches for the validation set need to be prepared only once")
+    print("Preparing batches for the validation set.")
     key, shuffle_key = jax.random.split(key)
     valid_batches = prepare_batches(shuffle_key, valid_data, batch_size)
 
     # Train for 'num_epochs' epochs.
-    print("Starts training loop...")
+    print("Starting training loop...")
     loss_train = []
     loss_energy = []
     loss_force = []
+    loss_energy_rmse = []
+    loss_force_rmse = []
 
     loss_val_train = []
     loss_val_energy = []
     loss_val_force = []
+    loss_val_energy_rmse = []
+    loss_val_force_rmse = []
+
     for epoch in range(1, num_epochs + 1):
         # Prepare batches.
         key, shuffle_key = jax.random.split(key)
@@ -385,8 +390,19 @@ def train_model(
         train_loss = 0.0
         train_energy_mae = 0.0
         train_forces_mae = 0.0
+        train_energy_rmse = 0.0
+        train_forces_rmse = 0.0
+
         for i, batch in enumerate(train_batches):
-            params, opt_state, loss, energy_mae, forces_mae = train_step(
+            (
+                params,
+                opt_state,
+                loss,
+                energy_mae,
+                forces_mae,
+                energy_rmse,
+                forces_rmse,
+            ) = train_step(
                 model_apply=model.apply,
                 optimizer_update=optimizer.update,
                 batch=batch,
@@ -399,17 +415,24 @@ def train_model(
             train_loss += (loss - train_loss) / (i + 1)
             train_energy_mae += (energy_mae - train_energy_mae) / (i + 1)
             train_forces_mae += (forces_mae - train_forces_mae) / (i + 1)
+            train_energy_rmse += (energy_rmse - train_energy_rmse) / (i + 1)
+            train_forces_rmse += (forces_rmse - train_forces_rmse) / (i + 1)
 
         loss_train.append(train_loss)
         loss_energy.append(train_energy_mae)
         loss_force.append(train_forces_mae)
+        loss_energy_rmse.append(train_energy_rmse)
+        loss_force_rmse.append(train_forces_rmse)
+
         # Evaluate on validation set.
         valid_loss = 0.0
         valid_energy_mae = 0.0
         valid_forces_mae = 0.0
+        valid_energy_rmse = 0.0
+        valid_forces_rmse = 0.0
 
         for i, batch in enumerate(valid_batches):
-            loss, energy_mae, forces_mae = eval_step(
+            loss, energy_mae, forces_mae, energy_rmse, forces_rmse = eval_step(
                 model_apply=model.apply,
                 batch=batch,
                 batch_size=batch_size,
@@ -420,33 +443,47 @@ def train_model(
             valid_loss += (loss - valid_loss) / (i + 1)
             valid_energy_mae += (energy_mae - valid_energy_mae) / (i + 1)
             valid_forces_mae += (forces_mae - valid_forces_mae) / (i + 1)
+            valid_energy_rmse += (energy_rmse - valid_energy_rmse) / (i + 1)
+            valid_forces_rmse += (forces_rmse - valid_forces_rmse) / (i + 1)
 
         loss_val_train.append(valid_loss)
         loss_val_energy.append(valid_energy_mae)
         loss_val_force.append(valid_forces_mae)
+        loss_val_energy_rmse.append(valid_energy_rmse)
+        loss_val_force_rmse.append(valid_forces_rmse)
 
         # Print progress.
-        print(f"epoch: {epoch: 3d}                    train:   valid:")
-        print(f"    loss [a.u.]             {train_loss : 8.3f} {valid_loss : 8.3f}")
+        print(f"Epoch: {epoch: 3d}                    Train:      Valid:")
+        print(f"    Loss [a.u.]             {train_loss : 8.3f} {valid_loss : 8.3f}")
         print(
-            f"    energy mae [kcal/mol]   {train_energy_mae: 8.3f} {valid_energy_mae: 8.3f}"
+            f"    Energy MAE [kcal/mol]   {train_energy_mae: 8.3f} {valid_energy_mae: 8.3f}"
         )
         print(
-            f"    forces mae [kcal/mol/A] {train_forces_mae: 8.3f} {valid_forces_mae: 8.3f}"
+            f"    Energy RMSE [kcal/mol]  {train_energy_rmse: 8.3f} {valid_energy_rmse: 8.3f}"
+        )
+        print(
+            f"    Forces MAE [kcal/mol/Å] {train_forces_mae: 8.3f} {valid_forces_mae: 8.3f}"
+        )
+        print(
+            f"    Forces RMSE [kcal/mol/Å]{train_forces_rmse: 8.3f} {valid_forces_rmse: 8.3f}"
         )
 
-        # Best model
+        # Best model tracking
         if epoch == 1:
             valid_loss_best = 1e10
             valid_energy_mae_best = 1e10
             valid_forces_mae_best = 1e10
+            valid_energy_rmse_best = 1e10
+            valid_forces_rmse_best = 1e10
 
         if jnp.isnan(train_forces_mae) or jnp.isnan(valid_forces_mae):
-            print("BREAK: Nan appeared")
+            print("BREAK: NaN appeared")
             print(f"--------- BEST MODEL --------")
-            print(f"    loss [a.u.]             {valid_loss_best : 8.3f}")
-            print(f"    energy mae [kcal/mol]   {valid_energy_mae_best: 8.3f}")
-            print(f"    forces mae [kcal/mol/A] {valid_forces_mae_best: 8.3f}")
+            print(f"    Loss [a.u.]             {valid_loss_best : 8.3f}")
+            print(f"    Energy MAE [kcal/mol]   {valid_energy_mae_best: 8.3f}")
+            print(f"    Energy RMSE [kcal/mol]  {valid_energy_rmse_best: 8.3f}")
+            print(f"    Forces MAE [kcal/mol/Å] {valid_forces_mae_best: 8.3f}")
+            print(f"    Forces RMSE [kcal/mol/Å]{valid_forces_rmse_best: 8.3f}")
             break
 
         if valid_forces_mae < valid_forces_mae_best:
@@ -455,42 +492,59 @@ def train_model(
             valid_loss_best = valid_loss
             valid_energy_mae_best = valid_energy_mae
             valid_forces_mae_best = valid_forces_mae
+            valid_energy_rmse_best = valid_energy_rmse
+            valid_forces_rmse_best = valid_forces_rmse
             train_energy_mae_best = train_energy_mae
             train_forces_mae_best = train_forces_mae
             # Store best model
             params_best = device_put(params_best)
             params_2save = {
-                "errors": [valid_loss_best, valid_energy_mae, valid_forces_mae],
+                "errors": [
+                    valid_loss_best,
+                    valid_energy_mae_best,
+                    valid_forces_mae_best,
+                ],
                 "model": params_best,
             }
+            # Save model if needed
             # jnp.savez(f"best_model_{tail_str}_tmp_test.npz", **params_2save)
 
         if os.path.exists("early_stop"):
             print("BREAK: early_stop")
             print(f"--------- BEST MODEL --------")
-            print(f"    loss [a.u.]             {valid_loss_best : 8.3f}")
-            print(f"    energy mae [kcal/mol]   {valid_energy_mae_best: 8.3f}")
-            print(f"    forces mae [kcal/mol/A] {valid_forces_mae_best: 8.3f}")
+            print(f"    Loss [a.u.]             {valid_loss_best : 8.3f}")
+            print(f"    Energy MAE [kcal/mol]   {valid_energy_mae_best: 8.3f}")
+            print(f"    Energy RMSE [kcal/mol]  {valid_energy_rmse_best: 8.3f}")
+            print(f"    Forces MAE [kcal/mol/Å] {valid_forces_mae_best: 8.3f}")
+            print(f"    Forces RMSE [kcal/mol/Å]{valid_forces_rmse_best: 8.3f}")
             break
 
     # Return final model parameters.
     print(f"--------- BEST MODEL --------")
-    print(f"    loss [a.u.]             {valid_loss : 8.3f}")
-    print(f"    energy mae [kcal/mol]   {valid_energy_mae: 8.3f}")
-    print(f"    forces mae [kcal/mol/A] {valid_forces_mae: 8.3f}")
+    print(f"    Loss [a.u.]             {valid_loss_best : 8.3f}")
+    print(f"    Energy MAE [kcal/mol]   {valid_energy_mae_best: 8.3f}")
+    print(f"    Energy RMSE [kcal/mol]  {valid_energy_rmse_best: 8.3f}")
+    print(f"    Forces MAE [kcal/mol/Å] {valid_forces_mae_best: 8.3f}")
+    print(f"    Forces RMSE [kcal/mol/Å]{valid_forces_rmse_best: 8.3f}")
     return (
         params_best,
         loss_val_train,
         loss_val_energy,
         loss_val_force,
+        loss_val_energy_rmse,
+        loss_val_force_rmse,
         loss_train,
         loss_energy,
         loss_force,
+        loss_energy_rmse,
+        loss_force_rmse,
         train_energy_mae_best,
         train_forces_mae_best,
         valid_loss_best,
         valid_energy_mae_best,
         valid_forces_mae_best,
+        valid_energy_rmse_best,
+        valid_forces_rmse_best,
     )
 
 
@@ -608,18 +662,24 @@ if __name__ == "__main__":
 
         print("Start training model...")
         (
-            params,
+            params_best,
             loss_val_train,
             loss_val_energy,
             loss_val_force,
+            loss_val_energy_rmse,
+            loss_val_force_rmse,
             loss_train,
             loss_energy,
             loss_force,
-            valid_loss_best,
+            loss_energy_rmse,
+            loss_force_rmse,
             train_energy_mae_best,
             train_forces_mae_best,
+            valid_loss_best,
             valid_energy_mae_best,
             valid_forces_mae_best,
+            valid_energy_rmse_best,
+            valid_forces_rmse_best,
         ) = train_model(
             key=train_key,
             model=message_passing_model,
