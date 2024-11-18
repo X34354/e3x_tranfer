@@ -664,7 +664,7 @@ if __name__ == "__main__":
     dataset = np.load(filename)
     for key in dataset.keys():
         print(key)
-
+dataset['F_units']
     key = jax.random.PRNGKey(0)
 
     train_data, valid_data = prepare_datasets(

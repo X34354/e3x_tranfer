@@ -6,6 +6,7 @@ import pickle
 import warnings
 from datetime import datetime
 from typing import List
+
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -264,9 +265,12 @@ def mean_absolute_error(prediction, target):
     return jnp.mean(jnp.abs(prediction - target))
 
 
-@functools.partial(jax.jit, static_argnames=("model_apply", "optimizer_update", "batch_size"))
+@functools.partial(
+    jax.jit, static_argnames=("model_apply", "optimizer_update", "batch_size")
+)
 def train_step(
-    model_apply, optimizer_update, batch, batch_size, forces_weight, opt_state, params):
+    model_apply, optimizer_update, batch, batch_size, forces_weight, opt_state, params
+):
     def loss_fn(params):
         energy, forces = model_apply(
             params,
@@ -330,7 +334,7 @@ def train_model(
     learning_rate,
     forces_weight,
     batch_size,
-    file
+    file,
 ):
     # Initialize model parameters and optimizer state.
     print("Initialize model parameters and optimizer state.")
@@ -459,7 +463,7 @@ def train_model(
                 "errors": [valid_loss_best, valid_energy_mae, valid_forces_mae],
                 "model": params_best,
             }
-            #jnp.savez(f"best_model_{tail_str}_tmp_test.npz", **params_2save)
+            # jnp.savez(f"best_model_{tail_str}_tmp_test.npz", **params_2save)
 
         if os.path.exists("early_stop"):
             print("BREAK: early_stop")
@@ -489,14 +493,15 @@ def train_model(
         valid_forces_mae_best,
     )
 
-name_data_retrain = 'Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q'
-path_data = '../e3x_tranfer/data/'
-path_model = '../e3x_tranfer/model/'
+
+name_data_retrain = "Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q"
+path_data = "../e3x_tranfer/data/"
+path_model = "../e3x_tranfer/model/"
 experiment_name = "MP_Model_Training_fine_tunig"
 
 model_train_pickle = f"{path_model}best_model_1phase.pkl"
 data_train = None
-data_retrain = f'{path_data}{name_data_retrain}_retrain.npz'
+data_retrain = f"{path_data}{name_data_retrain}_retrain.npz"
 
 model_retrain_pickle_save = f"{path_model}{name_data_retrain}_retrain_.pkl"
 
@@ -523,69 +528,70 @@ forces_weight = 0.9
 batch_size = 256
 # ----------------------------------
 
-import yaml
 import os
 
+import yaml
+
 # Cargar el archivo YAML
-with open('config.yaml', 'r') as file:
+with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
 # Acceder a las variables de paths
-paths = config['paths']
-name_data_retrain = paths['name_data_retrain']
-path_data = paths['path_data']
-path_model = paths['path_model']
-experiment_name = paths['experiment_name']
+paths = config["paths"]
+name_data_retrain = paths["name_data_retrain"]
+path_data = paths["path_data"]
+path_model = paths["path_model"]
+experiment_name = paths["experiment_name"]
 
 model_train_pickle = f"{path_model}best_model_1phase.pkl"
 
-data_train = paths['data_train']  # Será None
+data_train = paths["data_train"]  # Será None
 
-data_retrain = f'{path_data}{name_data_retrain}.npz'
+data_retrain = f"{path_data}{name_data_retrain}.npz"
 model_retrain_pickle_save = f"{path_model}{name_data_retrain}.pkl"
 
 # Acceder a las variables de energías atómicas
-atom_energies = config['atom_energies']
-rm_atom_energ = atom_energies['rm_atom_energ']
-atom_energ = atom_energies['atom_energ']
+atom_energies = config["atom_energies"]
+rm_atom_energ = atom_energies["rm_atom_energ"]
+atom_energ = atom_energies["atom_energ"]
 
 # Acceder a los hiperparámetros del modelo
-model_hyperparams = config['model_hyperparameters']
-features = model_hyperparams['features']
-max_degree = model_hyperparams['max_degree']
-num_iterations = model_hyperparams['num_iterations']
-num_basis_functions = model_hyperparams['num_basis_functions']
-cutoff = model_hyperparams['cutoff']
-max_atomic_number = model_hyperparams['max_atomic_number']
-str_optim = model_hyperparams['str_optim']
+model_hyperparams = config["model_hyperparameters"]
+features = model_hyperparams["features"]
+max_degree = model_hyperparams["max_degree"]
+num_iterations = model_hyperparams["num_iterations"]
+num_basis_functions = model_hyperparams["num_basis_functions"]
+cutoff = model_hyperparams["cutoff"]
+max_atomic_number = model_hyperparams["max_atomic_number"]
+str_optim = model_hyperparams["str_optim"]
 
 # Acceder a los hiperparámetros de entrenamiento
-training_hyperparams = config['training_hyperparameters']
-num_train = training_hyperparams['num_train']
-num_valid = training_hyperparams['num_valid']
-num_epochs = training_hyperparams['num_epochs']
-learning_rate = training_hyperparams['learning_rate']
-forces_weight = training_hyperparams['forces_weight']
-batch_size = training_hyperparams['batch_size']
+training_hyperparams = config["training_hyperparameters"]
+num_train = training_hyperparams["num_train"]
+num_valid = training_hyperparams["num_valid"]
+num_epochs = training_hyperparams["num_epochs"]
+learning_rate = training_hyperparams["learning_rate"]
+forces_weight = training_hyperparams["forces_weight"]
+batch_size = training_hyperparams["batch_size"]
 
 # Ejemplo de uso de las variables
 
 if __name__ == "__main__":
 
-
-
     mlflow.set_experiment(experiment_name)
-    with mlflow.start_run(run_name=f"run_{name_data_retrain}_retrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+    with mlflow.start_run(
+        run_name=f"run_{name_data_retrain}_retrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    ):
 
         mlflow.log_artifact("config.yaml")
-        mlflow.log_artifact(data_retrain)    
-        mlflow.log_artifact(model_train_pickle)   
+        mlflow.log_artifact(data_retrain)
+        mlflow.log_artifact(model_train_pickle)
         # Create PRNGKeys.
         data_key, train_key = jax.random.split(jax.random.PRNGKey(0), 2)
 
         # Draw training and validation sets.
         train_data, valid_data, _ = prepare_datasets(
-            data_key, num_train=num_train, num_valid=num_valid , filename = data_retrain
+            data_key, num_train=num_train, num_valid=num_valid, filename=data_retrain
         )
 
         # Create and train model.
@@ -623,8 +629,7 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             forces_weight=forces_weight,
             batch_size=batch_size,
-            file = model_train_pickle
-
+            file=model_train_pickle,
         )
 
         # Log metrics
@@ -670,5 +675,3 @@ if __name__ == "__main__":
 
         print("Experiment completed and logged with MLflow.")
         mlflow.end_run()
-
-
