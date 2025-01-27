@@ -353,7 +353,7 @@ def train_model(
         len(train_data["atomic_numbers"])
     )
     with open(
-        model_train_pickle,
+        "/home/beemo-qc2/Documents/e3x_tranfer/model/Si16Vplus..DFT.SP-GRD.B3LYP.tight.Data.5628.R_E_F_D_Q.pkl",
         "rb",
     ) as file:
         loaded_params = pickle.load(file)
